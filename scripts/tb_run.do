@@ -13,8 +13,10 @@
 #     `include "x.sv", `include "./include/x.sv" and `include "./../x.sv" all resolve
 #   - the generated list is written to compile_auto.f (look there when a file is missing)
 #
-# Change this script only to add simulation libraries (SIM_LIBS below).
-# Image, frame count, handshake mode and the DUT are set in ../tb/tb_top.sv.
+# This script is not changed:
+#   - image, frame count, handshake mode and the DUT are set in ../tb/tb_top.sv
+#   - machine dependent paths are in local_paths.do (copy of local_paths_example.do)
+#   - simulation libraries are in sim_libs.do      (copy of sim_libs_example.do)
 #==============================================================================
 
 #------------------------------------------------------------------------------
@@ -40,33 +42,41 @@ set HEADER_DIRS   {include}
 # file name patterns that are headers or must not be compiled
 set EXCLUDE_FILES {define_*.sv *_define.sv}
 
-# precompiled simulation libraries the DUT needs (vendor IP, primitives), searched in
-# SIM_LIB_DIR; missing ones are skipped with a warning. Example: {altera_mf_ver lpm_ver}
-set SIM_LIBS      {}
-
 #------------------------------------------------------------------------------
-# machine dependent paths: NOT set here, so this script is the same for everybody
+# NOT set here, so this script is the same for everybody:
 #
-#   SIM_LIB_DIR : directory that holds the libraries of SIM_LIBS
-#                 (only needed when SIM_LIBS is not empty)
-#
-# They come from, in this order:
-#   1. local_paths.do next to this script (copy local_paths_example.do, do not hand it on)
-#   2. the environment variable SIM_LIB_DIR
+#   local_paths.do (copy of local_paths_example.do, not handed on)
+#       QUESTA_BIN  : folder of vsim.exe, only read by run_img_sim.bat
+#   sim_libs.do    (copy of sim_libs_example.do, not handed on)
+#       SIM_LIBS    : precompiled simulation libraries the DUT needs (vendor IP, primitives),
+#                     a library name (searched in SIM_LIB_DIR) or the full path of a library
+#       SIM_LIB_DIR : folder that holds the libraries given by name;
+#                     when not set there, the environment variable SIM_LIB_DIR is used
+# Both files are optional: without sim_libs.do no library is added.
 #------------------------------------------------------------------------------
+set SIM_LIBS    {}
 set SIM_LIB_DIR {}
 
-set local_paths [file join $DO_DIR local_paths.do]
-if {[file exists $local_paths]} {
-    puts "machine dependent paths from: $local_paths"
-    source $local_paths
+foreach f {local_paths.do sim_libs.do} {
+    set p [file join $DO_DIR $f]
+    if {[file exists $p]} {
+        puts "settings from: $p"
+        source $p
+    }
 }
 if {$SIM_LIB_DIR eq "" && [info exists env(SIM_LIB_DIR)]} { set SIM_LIB_DIR $env(SIM_LIB_DIR) }
 
-if {[llength $SIM_LIBS] > 0 && ($SIM_LIB_DIR eq "" || ![file isdirectory $SIM_LIB_DIR])} {
-    error "simulation library directory not set or not found: '$SIM_LIB_DIR'.\n\
-Copy local_paths_example.do to local_paths.do (next to this script) and set SIM_LIB_DIR,\n\
-or set the environment variable SIM_LIB_DIR."
+# every library: a folder given directly, or a name below SIM_LIB_DIR
+set lib_dirs {}
+foreach l $SIM_LIBS {
+    if {[file isdirectory $l]} {
+        lappend lib_dirs $l
+    } elseif {$SIM_LIB_DIR eq "" || ![file isdirectory $SIM_LIB_DIR]} {
+        error "simulation library '$l' is given by name, but SIM_LIB_DIR is not set or not found: '$SIM_LIB_DIR'.\n\
+Set SIM_LIB_DIR in sim_libs.do (copy of sim_libs_example.do), or the environment variable SIM_LIB_DIR."
+    } else {
+        lappend lib_dirs [file join $SIM_LIB_DIR $l]
+    }
 }
 
 #------------------------------------------------------------------------------
@@ -178,9 +188,9 @@ file mkdir $OUT_DIR
 
 set vsim_cmd [list vsim -L work]
 
-# simulation libraries: map the logical name, then search it
-foreach l $SIM_LIBS {
-    set d [file join $SIM_LIB_DIR $l]
+# simulation libraries: map the logical name (= folder name), then search it
+foreach d $lib_dirs {
+    set l [file tail $d]
     if {[file isdirectory $d]} {
         vmap $l $d
         lappend vsim_cmd -L $l

@@ -4,7 +4,8 @@ scripts/transcript
 scripts/*.wlf
 scripts/modelsim.ini
 scripts/compile_auto.f
-# machine dependent paths (copy of local_paths_example.do)
+# local settings (copies of the *_example.do files)
 scripts/local_paths.do
+scripts/sim_libs.do
 # simulation output
 pic/out/
