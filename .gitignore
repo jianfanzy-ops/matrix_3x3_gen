@@ -1,0 +1,10 @@
+# simulation by-products
+scripts/work/
+scripts/transcript
+scripts/*.wlf
+scripts/modelsim.ini
+scripts/compile_auto.f
+# machine dependent paths (copy of local_paths_example.do)
+scripts/local_paths.do
+# simulation output
+pic/out/
